@@ -18,20 +18,20 @@ You must have one file in your project that defines `ARENA_IMPLEMENTATION` befor
 #include "Arena.h"
 
 int main(){
-    struct Point {
+    typedef struct Point {
         int a;
         int b;
         int c;
-    };
+    } Point;
 
     Arena* arr = create_arena(1 MB);
-    struct Point* p = (struct Point*)arena_allocate(arr, sizeof(struct Point));
+    struct Point* p = (struct Point*)arena_allocate(arr, sizeof(Point));
     print_arena(arr);
 
     arena_reset(arr);
     print_arena(arr);
-    struct Point* p1 = (struct Point*)arena_allocate(arr, sizeof(struct Point));
-    struct Point* p2 = (struct Point*)arena_allocate(arr, sizeof(struct Point));
+    struct Point* p1 = (Point*)arena_allocate(arr, sizeof(Point));
+    struct Point* p2 = (Point*)arena_allocate(arr, sizeof(Point));
     print_arena(arr);
 
     arena_free(arr);
