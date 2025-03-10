@@ -25,7 +25,7 @@ int main(){
     } Point;
 
     Arena* arr = create_arena(1 MB);
-    struct Point* p = (struct Point*)arena_allocate(arr, sizeof(Point));
+    struct Point* p = (Point*)arena_allocate(arr, sizeof(Point));
     print_arena(arr);
 
     arena_reset(arr);
