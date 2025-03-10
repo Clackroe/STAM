@@ -257,6 +257,75 @@ int do_tests()
     return 0;
 }
 
+void do_tests_two()
+{
+    printf("=== Running Stress Test ===\n");
+
+    // Create an arena with a small initial size to force multiple regions
+    uint32_t initial_size = 16 KB;
+    Arena* arena = create_arena(initial_size);
+
+    if (!arena) {
+        printf("Failed to create arena\n");
+        return;
+    }
+
+    print_arena(arena);
+
+    // Allocate small chunks to fill up the first region
+    for (int i = 0; i < 1000; i++) {
+        void* ptr = arena_allocate(arena, 64);
+        if (!ptr) {
+            printf("Allocation failed at iteration %d\n", i);
+            break;
+        }
+        memset(ptr, 0xAB, 64); // Write to allocated memory to test it
+    }
+
+    print_arena(arena);
+
+    // Allocate a large chunk to force a new region
+    void* large_alloc = arena_allocate(arena, 64 KB);
+    if (!large_alloc) {
+        printf("Failed to allocate large block\n");
+    } else {
+        memset(large_alloc, 0xCD, 64 KB);
+    }
+
+    print_arena(arena);
+
+    // Allocate another large chunk exceeding current capacity to stress-test auto-growing
+    void* very_large_alloc = arena_allocate(arena, 256 KB);
+    if (!very_large_alloc) {
+        printf("Failed to allocate very large block\n");
+    } else {
+        memset(very_large_alloc, 0xEF, 256 KB);
+    }
+
+    print_arena(arena);
+
+    // Reset the arena and verify reuse of memory
+    printf("Resetting Arena...\n");
+    arena_reset(arena);
+    print_arena(arena);
+
+    // Allocate again after reset
+    void* after_reset_alloc = arena_allocate(arena, 128);
+    if (!after_reset_alloc) {
+        printf("Allocation after reset failed\n");
+    } else {
+        memset(after_reset_alloc, 0x55, 128);
+    }
+
+    print_arena(arena);
+
+    // Free the arena and check for memory leaks using Valgrind
+    printf("Freeing Arena...\n");
+    arena_free(arena);
+
+    printf("=== Stress Test Completed ===\n");
+}
+
 int main(void)
 {
     struct Point {
@@ -271,6 +340,8 @@ int main(void)
     print_arena(arr);
 
     arena_free(arr);
+
+    do_tests_two();
 
     return do_tests();
 }

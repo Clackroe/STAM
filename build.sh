@@ -1,11 +1,14 @@
 
-directory="${PWD}/src"
-src_extensions=" -o -name '*.c'"
 
-include_dirs="-I src/"
+directory="${PWD}/tests"
 
-file_paths=$(find "$directory" -type f \( -name "*.cpp" -o -name "*.c" \) -print)
+test_file_paths_c=$(find "$directory" -type f \(  -name "*.c" \) -print)
 
-FLAGS="-Wall -Wextra $include_dirs"
+test_file_paths_cpp=$(find "$directory" -type f \( -name "*.cpp"  \) -print)
 
-bear -- clang $file_paths $FLAGS -o main
+
+FLAGS="-Wextra"
+
+bear -- clang "$test_file_paths_c" "$FLAGS" -o test_c
+
+bear -- clang++ "$test_file_paths_cpp" "$FLAGS" -o test_cpp

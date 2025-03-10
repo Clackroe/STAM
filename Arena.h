@@ -1,5 +1,6 @@
 #include <inttypes.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #define KB *1024
@@ -31,6 +32,42 @@ void* arena_allocate(Arena* arena, uint32_t size_bytes);
 void arena_reset(Arena* arena);
 void arena_free(Arena* arena);
 void print_arena(Arena* arena);
+
+#ifdef ARENA_CPP
+
+struct ArenaCPP {
+
+    ArenaCPP(uint32_t size_bytes)
+    {
+        arena = create_arena(size_bytes);
+    }
+    ~ArenaCPP()
+    {
+        arena_free(arena);
+    }
+
+    template <typename T, typename... Args>
+    T* allocate(Args... args)
+    {
+        void* obj = arena_allocate(arena, sizeof(T));
+        return new (obj) T(args...);
+
+    };
+
+
+    void reset()
+    {
+        arena_reset(arena);
+    }
+    void print(){
+        print_arena(arena);
+    }
+
+private:
+    Arena* arena;
+};
+
+#endif // ARENA_CPP
 
 #ifdef ARENA_IMPLEMENTATION
 
