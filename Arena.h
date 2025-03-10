@@ -1,3 +1,5 @@
+#ifndef _ARENA_H
+#define _ARENA_H
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -51,15 +53,14 @@ struct ArenaCPP {
     {
         void* obj = arena_allocate(arena, sizeof(T));
         return new (obj) T(args...);
-
     };
-
 
     void reset()
     {
         arena_reset(arena);
     }
-    void print(){
+    void print()
+    {
         print_arena(arena);
     }
 
@@ -203,3 +204,4 @@ void print_arena(Arena* arena)
 }
 
 #endif // ARENA_IMPLEMENTATION
+#endif //_ARENA_H
