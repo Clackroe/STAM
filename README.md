@@ -3,9 +3,11 @@
 Header Only Arena Allocator in C for worry free, fast, and efficient memory management with little overhead
 
 
-## Building Example
+## Building Examples
 ```bash
-./build.sh && main
+./build.sh
+./test_cpp 
+./test_c
 ```
 
 
