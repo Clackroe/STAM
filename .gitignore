@@ -1,4 +1,5 @@
 compile_commands.json
 main
 .cache/
-test*
+test_cpp
+test_c
