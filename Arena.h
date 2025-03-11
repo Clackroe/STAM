@@ -23,6 +23,11 @@ typedef struct Arena {
     Region* end;
 } Arena;
 
+typedef struct ArenaMark {
+    Region* reg;
+    uint32_t count;
+} ArenaMark;
+
 Region* create_region(uint32_t size_bytes);
 void* region_allocate(Region* reg, uint32_t size_bytes);
 void region_reset(Region* reg);
@@ -34,6 +39,9 @@ void* arena_allocate(Arena* arena, uint32_t size_bytes);
 void arena_reset(Arena* arena);
 void arena_free(Arena* arena);
 void print_arena(Arena* arena);
+
+ArenaMark arena_scratch(Arena* arena);
+void arena_pop_scratch(Arena* arena, ArenaMark m);
 
 #ifdef ARENA_CPP
 
@@ -156,6 +164,32 @@ void* arena_allocate(Arena* arena, uint32_t size_bytes)
     }
     arena->end = curr;
     return region_allocate(arena->end, size_bytes);
+}
+
+ArenaMark arena_scratch(Arena* arena)
+{
+    ArenaMark mark;
+    if (arena->end == NULL) {
+        printf("Tried to make a scrach arena for an uninitialized arena");
+        return mark;
+    }
+    mark.reg = arena->end;
+    mark.count = arena->end->data_count;
+
+    return mark;
+}
+void arena_pop_scratch(Arena* arena, ArenaMark m)
+{
+    if (m.reg == NULL) {
+        arena_reset(arena);
+        return;
+    }
+    m.reg->data_count = m.count;
+    Region* curr = m.reg->next;
+    while (curr) {
+        curr->data_count = 0;
+    }
+    arena->end = m.reg;
 }
 
 void arena_reset(Arena* arena)
