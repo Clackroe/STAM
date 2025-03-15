@@ -9,6 +9,8 @@ test_file_paths_cpp=$(find "$directory" -type f \( -name "*.cpp"  \) -print)
 
 FLAGS="-Wextra"
 
-bear -- clang "$test_file_paths_c" "$FLAGS" -o test_c
+echo "=====BUILDING C====="
+bear -- clang -g -O0 "$test_file_paths_c" "$FLAGS" -o test_c
 
-bear -- clang++ "$test_file_paths_cpp" "$FLAGS" -o test_cpp
+echo "=====BUILDING CPP====="
+bear -- clang++ -g -O0 "$test_file_paths_cpp" "$FLAGS" -o test_cpp
