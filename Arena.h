@@ -9,6 +9,9 @@
 #define MB *1024 * 1024
 #define GB *1024 * 1024 * 1024
 
+// #define ARENA_IMPLEMENTATION
+// #define ARENA_CPP
+
 #define ALIGN_SIZE(size_bytes) (size_bytes + sizeof(uintptr_t) - 1) / sizeof(uintptr_t);
 
 typedef struct Region {
@@ -57,16 +60,33 @@ struct ArenaCPP {
     }
 
     template <typename T, typename... Args>
-    T* allocate(Args... args)
+    T* construct(Args... args)
     {
         void* obj = arena_allocate(arena, sizeof(T));
         return new (obj) T(args...);
     };
 
+    template <typename T>
+    T* allocate()
+    {
+        return (T*)arena_allocate(arena, sizeof(T));
+    };
+
+    ArenaMark mark()
+    {
+        return arena_scratch(arena);
+    }
+
     void reset()
     {
         arena_reset(arena);
     }
+
+    void reset(ArenaMark mark)
+    {
+        arena_pop_scratch(arena, mark);
+    }
+
     void print()
     {
         print_arena(arena);
