@@ -1,5 +1,5 @@
 #define ARENA_IMPLEMENTATION
-#include "Arena.h"
+#include "../Arena.h"
 
 #include <inttypes.h>
 #include <stdint.h>
@@ -12,7 +12,7 @@
 void test_int_array(Arena* arena, size_t count)
 {
     printf("\n=== Testing allocation of %zu integers ===\n", count);
-    int* numbers = arena_allocate(arena, count * sizeof(int));
+    int* numbers = (int*)arena_allocate(arena, count * sizeof(int));
     if (!numbers) {
         printf("Failed to allocate int array\n");
         return;
@@ -41,7 +41,7 @@ typedef struct {
 void test_struct_array(Arena* arena, size_t count)
 {
     printf("\n=== Testing allocation of %zu Vector3D structs ===\n", count);
-    Vector3D* vectors = arena_allocate(arena, count * sizeof(Vector3D));
+    Vector3D* vectors = (Vector3D*)arena_allocate(arena, count * sizeof(Vector3D));
     if (!vectors) {
         printf("Failed to allocate Vector3D array\n");
         return;
@@ -72,8 +72,8 @@ void test_mixed_allocations(Arena* arena, size_t iterations)
     printf("\n=== Testing %zu mixed allocations ===\n", iterations);
 
     // Array to store pointers for validation
-    void** pointers = malloc(iterations * sizeof(void*));
-    size_t* sizes = malloc(iterations * sizeof(size_t));
+    void** pointers = (void**)malloc(iterations * sizeof(void*));
+    size_t* sizes = (size_t*)malloc(iterations * sizeof(size_t));
 
     // Perform random allocations of different sizes
     srand((unsigned int)time(NULL));
@@ -83,7 +83,7 @@ void test_mixed_allocations(Arena* arena, size_t iterations)
         sizes[i] = size;
 
         // Allocate memory
-        unsigned char* memory = arena_allocate(arena, size);
+        unsigned char* memory = (unsigned char*)arena_allocate(arena, size);
         pointers[i] = memory;
 
         if (!memory) {
@@ -98,7 +98,7 @@ void test_mixed_allocations(Arena* arena, size_t iterations)
     // Verify some random allocations
     for (size_t i = 0; i < 10 && i < iterations; i++) {
         size_t idx = rand() % iterations;
-        unsigned char* memory = pointers[idx];
+        unsigned char* memory = (unsigned char*)pointers[idx];
 
         if (!memory)
             continue;
@@ -119,7 +119,7 @@ void test_edge_cases(Arena* arena)
     printf("\n=== Testing edge cases ===\n");
 
     // Test very small allocation
-    char* small = arena_allocate(arena, 1);
+    char* small = (char*)arena_allocate(arena, 1);
     if (small) {
         *small = 'A';
         printf("Small allocation successful: %c\n", *small);
@@ -188,7 +188,7 @@ void compare_with_malloc()
 
     // Test with malloc
     clock_t malloc_start = clock();
-    void** ptrs = malloc(NUM_ALLOCS * sizeof(void*));
+    void** ptrs = (void**)malloc(NUM_ALLOCS * sizeof(void*));
 
     for (int i = 0; i < NUM_ALLOCS; i++) {
         ptrs[i] = malloc(ALLOC_SIZE);

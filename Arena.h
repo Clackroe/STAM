@@ -1,6 +1,9 @@
 #ifndef _ARENA_H
 #define _ARENA_H
 
+// #define ARENA_IMPLEMENTATION
+// #define ARENA_CPP
+
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -12,17 +15,21 @@
 #define MB *1024 * 1024
 #define GB *1024 * 1024 * 1024
 
-#define ALIGN_SIZE(size_bytes) ((size_bytes + sizeof(uintptr_t) - 1) / sizeof(uintptr_t))
+// #define ALIGN_SIZE(size_bytes) ((size_bytes + sizeof(uintptr_t) - 1) / sizeof(uintptr_t))
+// #define ALIGN_SIZE(size_bytes) ((size_bytes + (sizeof(uintptr_t) - 1)) & ~(sizeof(uintptr_t) - 1))
+
+#define ALIGN_UP(n, align) (((n) + (align) - 1) & ~((align) - 1))
+#define ALIGN_SIZE(size_bytes) ALIGN_UP(size_bytes, sizeof(uintptr_t))
 
 typedef struct FreeListNode {
-    uint32_t size_bytes;
+    size_t size_bytes;
     void* ptr;
     struct FreeListNode* next;
 } FreeListNode;
 
 typedef struct Region {
-    uint32_t data_count;
-    uint32_t capacity;
+    size_t data_count;
+    size_t capacity;
     struct Region* next;
     uintptr_t data[];
 } Region;
@@ -39,15 +46,15 @@ typedef struct ArenaMark {
     uint32_t count;
 } ArenaMark;
 
-Region* create_region(uint32_t size_bytes);
-void* region_allocate(Region* reg, uint32_t size_bytes);
+Region* create_region(size_t size_bytes);
+void* region_allocate(Region* reg, size_t size_bytes);
 void region_reset(Region* reg);
 void region_free(Region* reg);
 void print_region(Region* reg);
 
-Arena* create_arena(uint32_t size_bytes);
-Arena* create_freelist_arena(uint32_t size_bytes);
-void* arena_allocate(Arena* arena, uint32_t size_bytes);
+Arena* create_arena(size_t size_bytes);
+Arena* create_freelist_arena(size_t size_bytes);
+void* arena_allocate(Arena* arena, size_t size_bytes);
 void arena_reset(Arena* arena);
 void arena_free(Arena* arena);
 void print_arena(Arena* arena);
@@ -56,9 +63,106 @@ void arena_add_free_list(Arena* arena, void* ptr, size_t size);
 ArenaMark arena_scratch(Arena* arena);
 void arena_pop_scratch(Arena* arena, ArenaMark m);
 
+#ifdef ARENA_CPP
+#include <cstdint>
+#include <map>
+#include <set>
+#include <unordered_map>
+#include <vector>
+
+struct ArenaCPP {
+
+    ArenaCPP(size_t size_bytes, bool use_free_list = false)
+    {
+        if (use_free_list) {
+            arena = create_freelist_arena(size_bytes);
+        } else {
+            arena = create_arena(size_bytes);
+        }
+    }
+    ~ArenaCPP()
+    {
+        arena_free(arena);
+    }
+
+    template <typename T, typename... Args>
+    T* allocate(Args... args)
+    {
+        void* obj = arena_allocate(arena, sizeof(T));
+        return new (obj) T(args...);
+    };
+    void* allocate(size_t size_bytes)
+    {
+        return arena_allocate(arena, size_bytes);
+    }
+    ArenaMark mark()
+    {
+        return arena_scratch(arena);
+    }
+
+    void reset()
+    {
+        arena_reset(arena);
+    }
+    void reset(ArenaMark m)
+    {
+        arena_pop_scratch(arena, m);
+    }
+
+    void print()
+    {
+        print_arena(arena);
+    }
+
+    void deallocate(void* ptr, size_t size)
+    {
+        arena_add_free_list(arena, ptr, size);
+    }
+
+    Arena* arena;
+};
+
+template <typename T>
+struct ArenaAllocator {
+    using value_type = T;
+    ArenaCPP* arena;
+    ArenaAllocator(ArenaCPP* a)
+        : arena(a) {};
+
+    template <typename U>
+    ArenaAllocator(const ArenaAllocator<U>& other) noexcept
+        : arena(other.arena) {};
+
+    T* allocate(std::size_t n)
+    {
+        return arena->allocate(n * sizeof(T));
+    }
+    void deallocate(T* ptr, std::size_t size)
+    {
+        arena->deallocate((void*)ptr, size);
+    }
+
+    friend bool operator==(const ArenaAllocator& one, const ArenaAllocator& two) { return one.arena->arena == two.arena->arena; }
+    friend bool operator!=(const ArenaAllocator& one, const ArenaAllocator& two) { return one.arena->arena != two.arena->arena; }
+};
+
+template <typename T>
+using ArenaVector = std::vector<T, ArenaAllocator<T>>;
+
+template <typename T>
+using ArenaSet = std::set<T, std::less<T>, ArenaAllocator<T>>;
+
+template <typename K, typename V>
+using ArenaMap = std::map<K, V, std::less<K>, ArenaAllocator<std::pair<const K, V>>>;
+
+template <typename K, typename V>
+using ArenaUMap = std::unordered_map<K, V, ArenaAllocator<std::pair<const K, V>>>;
+
+#endif // ARENA_CPP
+
 #ifdef ARENA_IMPLEMENTATION
 
-Region* create_region(uint32_t size_bytes)
+Region* create_region(size_t size_bytes)
 {
     size_t size = ALIGN_SIZE(size_bytes);
 
@@ -75,13 +179,13 @@ Region* create_region(uint32_t size_bytes)
     return region;
 };
 
-void* region_allocate(Region* reg, uint32_t size_bytes)
+void* region_allocate(Region* reg, size_t size_bytes)
 {
 
     size_t size = ALIGN_SIZE(size_bytes);
 
     if (reg->data_count + size > reg->capacity) {
-        printf("Tried to region_allocate size (%" PRIu64 ") greater than capacity (%" PRIu32 ")\n", reg->data_count + size, reg->capacity);
+        printf("Tried to region_allocate size (%lu) greater than capacity (%lu)\n", reg->data_count + size, reg->capacity);
         return NULL;
     }
 
@@ -110,7 +214,7 @@ void print_region(Region* reg)
     printf("Capacity: %" PRIu64 " bytes\n", reg->capacity * sizeof(uintptr_t));
 }
 
-Arena* create_arena(uint32_t size_bytes)
+Arena* create_arena(size_t size_bytes)
 {
     Arena* arena = (Arena*)malloc(sizeof(Arena));
 
@@ -121,7 +225,7 @@ Arena* create_arena(uint32_t size_bytes)
 
     return arena;
 };
-Arena* create_freelist_arena(uint32_t size_bytes)
+Arena* create_freelist_arena(size_t size_bytes)
 {
     Arena* arena = create_arena(size_bytes);
     arena->use_free_list = 1;
@@ -129,24 +233,23 @@ Arena* create_freelist_arena(uint32_t size_bytes)
     return arena;
 }
 
-void* arena_allocate(Arena* arena, uint32_t size_bytes)
+void* arena_allocate(Arena* arena, size_t size_bytes)
 {
     size_t size = ALIGN_SIZE(size_bytes);
 
+    // Fast Common case
+    if (arena->end->capacity - arena->end->data_count >= size) {
+        void* res = &arena->end->data[arena->end->data_count];
+        arena->end->data_count += size;
+        return res;
+    }
+
     if (arena->use_free_list && arena->free_list != NULL) {
-        FreeListNode* curr_node = arena->free_list;
-        FreeListNode* prev = NULL;
-        while (curr_node) {
-            if (curr_node->size_bytes >= size_bytes) { // Should be fine?
-                if (prev) {
-                    prev->next = curr_node->next;
-                } else {
-                    arena->free_list = curr_node->next;
-                }
-                return curr_node->ptr;
-            }
-            prev = curr_node;
-            curr_node = curr_node->next;
+        // Freelist is sorted, so we only check first
+        if (arena->free_list->size_bytes >= size_bytes) { // Should be fine?
+            void* ptr = arena->free_list->ptr;
+            arena->free_list = arena->free_list->next;
+            return ptr;
         }
     }
 
@@ -288,42 +391,6 @@ void print_arena(Arena* arena)
     printf("Total Capacity: %" PRIu64 " bytes\n", total_size * sizeof(uintptr_t));
     printf("Num Regions: %i\n", num_regions);
 }
-
-#ifdef ARENA_CPP
-#include <cstdint>
-
-struct ArenaCPP {
-
-    ArenaCPP(uint32_t size_bytes)
-    {
-        arena = create_arena(size_bytes);
-    }
-    ~ArenaCPP()
-    {
-        arena_free(arena);
-    }
-
-    template <typename T, typename... Args>
-    T* allocate(Args... args)
-    {
-        void* obj = arena_allocate(arena, sizeof(T));
-        return new (obj) T(args...);
-    };
-
-    void reset()
-    {
-        arena_reset(arena);
-    }
-    void print()
-    {
-        print_arena(arena);
-    }
-
-private:
-    Arena* arena;
-};
-
-#endif // ARENA_CPP
 
 #endif // ARENA_IMPLEMENTATION
 #endif //_ARENA_H
